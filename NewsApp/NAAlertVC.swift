@@ -7,7 +7,7 @@
 
 import UIKit
 
-class NAAlertVCViewController: UIViewController {
+class NAAlertVC: UIViewController {
 
     let containerView = NAContainerView()
     let titleLabel = NASourceLabel()

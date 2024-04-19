@@ -18,12 +18,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
          
         window = UIWindow(frame: winScene.coordinateSpace.bounds)
         window?.windowScene = winScene
-        window?.rootViewController = NATabBarController()
+        window?.rootViewController = MainViewController()
         window?.makeKeyAndVisible()
-
-        
+        configureNavigationBar()
     }
 
+    func configureNavigationBar() {
+        UINavigationBar.appearance().tintColor = .darkGray
+    }
     func sceneDidDisconnect(_ scene: UIScene) {
         // Called as the scene is being released by the system.
         // This occurs shortly after the scene enters the background, or when its session is discarded.

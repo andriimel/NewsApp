@@ -8,21 +8,23 @@
 import Foundation
 
 
-struct Response : Decodable {
+struct Response : Codable {
     
     var articles : [Article]
 }
 
-struct Article : Decodable {
+struct Article : Codable {
+  
+    
     var source: Source
     var title: String?
     var url: URL?
     var urlToImage: String?
-    var publishedAt: String?
+   
+    //var publishedAt: String?
     
 }
-struct Source : Decodable{
-    var id:String?
+struct Source : Codable{
     var name: String
     
 }

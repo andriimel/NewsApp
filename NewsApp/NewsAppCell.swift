@@ -7,121 +7,82 @@
 
 import UIKit
 
+protocol NewsAppCellDelegate {
+    func didTapLikeButton(on cell: NewsAppCell)
+}
 class NewsAppCell: UITableViewCell {
 
-    var newsManager = NewsManager()
+    static let cellIdentifier = "NewsAppCell"
     
-    var scienceCell:ScienceNewsViewController?
-    var sportCell: SportNewsViewController?
-    var healthCell: HealthViewController?
-    var entertainmentCell: EntertainmentViewController?
-    var favoriteCell: FavoriteViewController?
+    let avatarImage = NAAvatarImageView(frame: .zero)
+    let newsSourceLabel = NASourceLabel()
+    let newsLabel = NANewsLabel()
+    let likeButton = NALikeButton(frame:.zero)
     
+     var delegate: NewsAppCellDelegate?
     
-    static let identifier = "NewsAppCell"
-    
-    var cellIsLike = false
-    
-     let logoImageView: UIImageView = {
-        let imageView = UIImageView()
-        imageView.contentMode = .scaleAspectFill
-        imageView.layer.cornerRadius = 10
-         imageView.backgroundColor = .systemBlue
-        imageView.layer.masksToBounds = true
-        return imageView
-    }()
-    
-   
-     let newsTitleLabel: UILabel = {
-        let label = UILabel()
-        // label.backgroundColor = UIColor.red
-         label.textColor = .darkGray
-         label.textAlignment = .left
-         label.numberOfLines = 0
-        label.font = .systemFont(ofSize: 12, weight: .semibold)
-        return label
-    }()
-    let newsSourceNameLabel: UILabel = {
-       let label = UILabel()
-       // label.backgroundColor = UIColor.green
-        label.textColor = .darkGray
-        label.textAlignment = .center
-       label.font = .systemFont(ofSize: 15, weight: .semibold)
-       return label
-   }()
-    let newsDateLabel: UILabel = {
-       let label = UILabel()
-        label.backgroundColor = UIColor.blue
-        label.textAlignment = .center
-       label.font = .systemFont(ofSize: 10, weight: .semibold)
-       return label
-   }()
-   
-    let likeButton: UIButton = {
-        let button = UIButton(type: .custom)
-        button.setImage(UIImage(systemName: "heart"), for: .normal)
-      
-        button.tintColor = .red
-        
-        return button
-    }()
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: style, reuseIdentifier: reuseIdentifier)
-        self.contentView.addSubview(logoImageView)
-        self.contentView.addSubview(newsTitleLabel)
-        self.contentView.addSubview(newsSourceNameLabel)
-        accessoryView = likeButton
-        
-        likeButton.addTarget(self, action: #selector(likeButtonPressed), for: .touchUpInside)
-       // self.addSubview(newsDateLabel)
-
+        super.init(style: style, reuseIdentifier: NewsAppCell.cellIdentifier)
+        configure()
     }
+    
     required init?(coder: NSCoder) {
-        fatalError("error with cell implementation")
+        fatalError("init(coder:) has not been implemented")
     }
     
-    override func layoutSubviews() {
-        super.layoutSubviews()
-
-        logoImageView.frame = CGRect(x: 10,
-                                     y: 5,
-                                     width: 70,
-                                     height: 70)
-
-
-        newsSourceNameLabel.frame = CGRect(x: logoImageView.frame.maxX+10,
-                                       y: 0,
-                                       width: contentView.frame.width - logoImageView.frame.width - (accessoryView?.frame.width)!,
-                                           height: contentView.frame.height * 0.3)
-        newsTitleLabel.frame = CGRect(x: logoImageView.frame.maxX + 10,
-                                      y: newsSourceNameLabel.frame.height,
-                                      width: contentView.frame.width - logoImageView.frame.width - (accessoryView?.frame.width)!,
-                                      height: contentView.frame.height - newsSourceNameLabel.frame.height)
-        accessoryView?.frame = CGRect(x: newsTitleLabel.frame.maxX + 10,
-                                      y: 20,
-                                      width: 40,
-                                      height: 40)
+    func set(article:Article) {
         
-    }
-    
-    func load(news: News) {
-       
-        newsTitleLabel.text = news.titleName
-        newsSourceNameLabel.text = news.newsSourceName
-        self.accessoryView?.tintColor = news.isLike ? UIColor.red : .lightGray
+        newsSourceLabel.text = article.source.name
+        newsLabel.text = article.title
         
-        let url = URL(string: news.imageUrl ?? "")
-        logoImageView.sd_setImage(with: url)
+
+        NetworkNewsManager.shared.downloadImage(from: article.urlToImage) { [weak self ] image  in
+            guard let self = self else {return}
+            DispatchQueue.main.async {self.avatarImage.image = image }
+        }
+    }
+    @objc private func likeButtonTapped() {
+          delegate?.didTapLikeButton(on: self)
+      }
+
+    func configure() {
+        
+        addSubview(avatarImage)
+        addSubview(newsSourceLabel)
+        addSubview(newsLabel)
+        contentView.addSubview(likeButton)
+        
+        likeButton.addTarget(self, action: #selector(likeButtonTapped), for: .touchUpInside)
+
+        let padding: CGFloat = 10
+        
+        NSLayoutConstraint.activate([
+            avatarImage.centerYAnchor.constraint(equalTo: centerYAnchor),
+            avatarImage.leadingAnchor.constraint(equalTo: leadingAnchor, constant: padding),
+            avatarImage.heightAnchor.constraint(equalToConstant: 60),
+            avatarImage.widthAnchor.constraint(equalToConstant: 60),
+            
+//            
+            likeButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+            likeButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -padding),
+            likeButton.heightAnchor.constraint(equalToConstant: 30),
+            likeButton.widthAnchor.constraint(equalToConstant: 30),
+//
+            
+            newsSourceLabel.topAnchor.constraint(equalTo: topAnchor, constant: padding),
+            newsSourceLabel.leadingAnchor.constraint(equalTo: avatarImage.trailingAnchor, constant: padding),
+            newsSourceLabel.trailingAnchor.constraint(equalTo: likeButton.trailingAnchor, constant: -padding),
+            newsSourceLabel.heightAnchor.constraint(equalToConstant: 15),
+            
+            newsLabel.topAnchor.constraint(equalTo: newsSourceLabel.bottomAnchor),
+            newsLabel.leadingAnchor.constraint(equalTo: avatarImage.trailingAnchor, constant: padding),
+            newsLabel.trailingAnchor.constraint(equalTo: likeButton.leadingAnchor),
+            newsLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -padding)
+
+        ])
     }
 
- @objc func likeButtonPressed(sender: UIButton) {
-     
-     scienceCell?.sportLikeNewsButtonPressed(cell: self )
-     sportCell?.sportLikeNewsButtonPressed(cell: self)
-     healthCell?.healthLikeNewsButtonPressed(cell: self)
-     entertainmentCell?.entertainmentLikeNewsButtonPressed(cell: self)
-     favoriteCell?.deleteNewsFormList(cell: self)
-     
+ 
  }
-}
+
 

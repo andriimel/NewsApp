@@ -21,7 +21,8 @@ class NetworkNewsManager {
     
     static let shared = NetworkNewsManager()
     let myAPIkey = "de95bb98581645e39e35356ad155a46d"
-
+    let cache = NSCache<NSString, UIImage>()
+    
     func getApiData(forCategory category: String, completed:@escaping (Result< [Article], NAError>) -> (Void)) {
         
         let urlString = "https://newsapi.org/v2/top-headlines?country=us&category=\(category)&apiKey=\(myAPIkey)"
@@ -55,6 +56,42 @@ class NetworkNewsManager {
         }
         task.resume()
     }
+    
+    func downloadImage (from urlString: String?, completed:@escaping (UIImage?) -> Void){
+        
+        guard let downloadURL = urlString else {
+            completed(Images.emptyImage)
+            return
+        }
+        
+        let cacheKey = NSString(string: downloadURL)
+        
+        if let image = cache.object(forKey: cacheKey) {
+            completed(image)
+            return
+        }
+
+        guard let url = URL(string: downloadURL) else {
+            completed(nil)
+            return}
+        
+        let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+            guard let self = self,
+            error == nil,
+            let   response = response as? HTTPURLResponse, response.statusCode == 200,
+            let data = data,
+            let image = UIImage(data: data)
+            else {
+                completed(nil)
+                return
+                }
+           
+            cache.setObject(image, forKey: cacheKey)
+            completed(image)
+        }
+        task.resume()
+        
+    }
+    
+    
 }
-
-

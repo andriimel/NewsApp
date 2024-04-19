@@ -25,6 +25,6 @@ struct Constant{
 
 enum Images {
     
-    static let emptyImage = UIImage(systemName: "person")
+    static let emptyImage = UIImage(systemName: "heart")
 }
  

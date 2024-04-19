@@ -9,171 +9,143 @@ import UIKit
 import CoreData
 import SwiftUI
 
-class FavoriteViewController: UIViewController, UISearchResultsUpdating, UISearchBarDelegate{
- 
-    var favorite : [Favorite]?
-    var searchNews : [Favorite]?
-    private  var newsTableView: UITableView!
+class FavoriteViewController: UIViewController{
     
-    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    let tableView               = UITableView()
+    var favorites : [Article]  = []
+    var filterFavorite : [Article] = []
+    let searchController = UISearchController()
+    var isSearching = false
     
-     let searchController = UISearchController(searchResultsController: nil)
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+    }
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        fetchNews()
+        
+        view.backgroundColor = .systemRed
+        configureTableView()
+        configureSearchController()
+        getFavorites()
     }
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    func configureTableView () {
+        view.addSubview(tableView)
+        tableView.frame             = view.bounds
+        tableView.rowHeight         = 80
+        tableView.delegate          = self
+        tableView.dataSource        = self
         
-        
-        
-        navigationItem.title = "Favorite"
-        let textAttributes = [NSAttributedString.Key.foregroundColor:UIColor.darkGray]
-        navigationController?.navigationBar.titleTextAttributes = textAttributes
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Back", style: .done, target: self, action: #selector(backButtonPressed))
-        navigationItem.leftBarButtonItem?.tintColor = .darkGray
-        
-        let barHeight: CGFloat = view.window?.windowScene?.statusBarManager?.statusBarFrame.height ?? 0
-        let displayWidth: CGFloat = self.view.frame.width
-        let displayHeight: CGFloat = self.view.frame.height
-        
-        newsTableView = UITableView(frame: CGRect(x: 0, y: barHeight, width: displayWidth, height: displayHeight - barHeight))
-        newsTableView.register(NewsAppCell.self,forCellReuseIdentifier:  NewsAppCell.identifier)
-        newsTableView.rowHeight = 80
-        newsTableView.dataSource = self
-        newsTableView.delegate = self
-        
-        self.initSearchController()
-        
-        
-        self.view.addSubview(newsTableView)
-        
+        tableView.register(NAFavoriteCell.self, forCellReuseIdentifier: NAFavoriteCell.cellIdentifier)
     }
     
-    @objc func backButtonPressed() {
-        print ("back button pressed")
-        let mainVC = MainViewController()
-        mainVC.modalPresentationStyle = .fullScreen
-        present(mainVC, animated: true)
+    func getFavorites() {
         
-    }
-    // MARK: - Core data methods
-    
-    func deleteNewsFormList(cell : UITableViewCell) {
-        
-        let indexPathTapped = newsTableView.indexPath(for: cell)
-        deleteNews(with: indexPathTapped!.row)
-    }
-    
-    func deleteNews(with newsIndex: Int) {
-        let newsToRemove = self.favorite![newsIndex]
-        newsToRemove.favorites?.isLike = false
-        self.context.delete(newsToRemove)
-        
-        self.saveNews()
-        
-        self.fetchNews()
-    }
-    
-    func saveNews(){
-        do {
-            try self.context.save()
-        } catch {
-            print ("Isues with saving news",error)
-        }
-        
-        self.fetchNews()
-    }
-    
-    func fetchNews() {
-        
-        do {
-            let request: NSFetchRequest<Favorite> = Favorite.fetchRequest()
-            let pred = NSPredicate(format: "favorites.isLike == %d", true )
-            request.predicate = pred
-            self.favorite = try context.fetch(request)
-            DispatchQueue.main.async {
-                self.newsTableView.reloadData()
+        FavoriteManager.retrieveFavorites { [weak self] result in
+            guard let self = self else {return}
+            
+            switch result {
+            case .success(let favorites):
+                if favorites.isEmpty {
+                   print("Error fav list is empty !!!!")
+                } else {
+                    self.favorites = favorites
+                    DispatchQueue.main.async {
+                        self.tableView.reloadData()
+                        self.view.bringSubviewToFront(self.tableView)
+                    }
+                }
+                self.favorites = favorites
+            case .failure(let error):
+                print ("Error !!!! ")
             }
-        } catch {
-            print(error)
         }
     }
+
+    func configureSearchController() {
     
-    func initSearchController() {
-        self.searchController.searchResultsUpdater = self
-        self.searchController.obscuresBackgroundDuringPresentation = false
-        self.searchController.hidesNavigationBarDuringPresentation = false
-        self.searchController.searchBar.placeholder = "Search ... "
-        
-        self.navigationItem.searchController = searchController
-        self.definesPresentationContext = false
-        self.navigationItem.hidesSearchBarWhenScrolling = false
-        self.searchController.searchBar.delegate = self
-    }
-    
-    public func updateSearchResults(for searchController: UISearchController) {
-        print("Debug PRINT", searchController.searchBar.text)
-        let searchBar = searchController.searchBar
-        guard  let searchText = searchBar.text else {return}
-        if searchText == "" {
-            return fetchNews()
-        }
-        do {
-           
-            let request: NSFetchRequest<Favorite> = Favorite.fetchRequest()
-            let pred = NSPredicate(format: "source CONTAINS[cd] %@", searchText )
-            request.predicate = pred
-            self.favorite = try context.fetch(request)
-            DispatchQueue.main.async {
-                self.newsTableView.reloadData()
-            }
-        } catch {
-            print(error)
-        }
+        //let searchController = UISearchController()
+        searchController.searchResultsUpdater = self
+        searchController.searchBar.placeholder = "Search for a username"
+        searchController.searchBar.delegate = self
+        searchController.obscuresBackgroundDuringPresentation = false
+        navigationItem.searchController = searchController
     }
 }
 
-extension FavoriteViewController: UITableViewDelegate, UITableViewDataSource {
-    
+extension FavoriteViewController:  UITableViewDelegate, UITableViewDataSource, FavoriteCellDelegate {
+  
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return favorite!.count
+        let activeFavorites = isSearching ? filterFavorite : favorites
+        return activeFavorites.count
+    }
+ 
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+    
+        let cell = tableView.dequeueReusableCell(withIdentifier: NAFavoriteCell.cellIdentifier) as! NAFavoriteCell
+        
+        let activeFavorites = isSearching ? filterFavorite : favorites
+        print("ButtonwithIndex\(indexPath.row)",cell.newsSourceLabel.frame.width)
+        cell.delegate = self
+        let favorite = activeFavorites[indexPath.row]
+        cell.set(article: favorite)
+        return cell
     }
     
-    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: NewsAppCell.identifier, for: indexPath as IndexPath) as! NewsAppCell
-        cell.favoriteCell = self
-        let url = URL(string: favorite![indexPath.row].imgURL ?? "")
-        if url == nil {
-            print ("Oops image doesnt exist")
-            
-        } else{
-            cell.logoImageView.sd_setImage(with: url)
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        //tableView. = false
+    }
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        guard editingStyle == .delete else {return}
+        
+        let favorite = favorites[indexPath.row]
+        
+        favorites.remove(at: indexPath.row)
+        tableView.deleteRows(at: [indexPath], with: .left)
+        
+        FavoriteManager.updateWith(favorite: favorite, actionType: .remove) {[weak self] error in
+            guard let self = self else {return}
+            guard let error = error else { return}
+               
         }
-        cell.newsTitleLabel.text = favorite![indexPath.row].title
-        cell.newsSourceNameLabel.text = favorite![indexPath.row].source
-        
-        return cell
-        
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        guard let url = favorite![indexPath.row].url else {return}
-        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+     
         tableView.deselectRow(at: indexPath, animated: true)
+        presentSafari(with: favorites[indexPath.row].url!)
     }
     
-    func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
-        let action = UIContextualAction(style: .destructive, title: "Delete") { action, view, completionHandler in
-            self.deleteNews(with: indexPath.row)
+    func share(on cell: NAFavoriteCell) {
+        guard  let indexPath = tableView.indexPath(for: cell) else {
+        return
         }
-        
-        return UISwipeActionsConfiguration(actions: [action])
+        guard let newsUrl = favorites[indexPath.row].url else {
+            return
+        }
+        let ac = UIActivityViewController(activityItems: [newsUrl], applicationActivities: nil)
+        present(ac, animated: true)
     }
     
-
-
+    
 }
 
+extension FavoriteViewController : UISearchResultsUpdating, UISearchBarDelegate{
+    func updateSearchResults(for searchController: UISearchController) {
+       
+        guard let filter = searchController.searchBar.text, !filter.isEmpty else {return}
+        
+        isSearching = true
+        let filterData = favorites.filter{$0.source.name.lowercased().contains(filter.lowercased())}
+        filterFavorite = filterData
+        tableView.reloadData()
+ 
+    }
+    
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        isSearching = false
+        tableView.reloadData()
+    }
+}

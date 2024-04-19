@@ -7,7 +7,7 @@
 
 import UIKit
 
-class BANewsButton: UIButton {
+class NANewsButton: UIButton {
 
     override init(frame: CGRect) {
         super.init(frame: frame)
