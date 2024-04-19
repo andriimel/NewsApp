@@ -24,6 +24,9 @@
             <uniquenessConstraint>
                 <constraint value="titleName"/>
             </uniquenessConstraint>
+            <uniquenessConstraint>
+                <constraint value="imageUrl"/>
+            </uniquenessConstraint>
         </uniquenessConstraints>
     </entity>
 </model>

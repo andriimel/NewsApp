@@ -5,6 +5,8 @@
 //  Created by Andrii Melnyk on 2/12/24.
 //
 
+import UIKit
+
 struct Constant{
   
     static let healthNews = "health"
@@ -20,3 +22,9 @@ struct Constant{
     }
     
 }
+
+enum Images {
+    
+    static let emptyImage = UIImage(systemName: "person")
+}
+ 
